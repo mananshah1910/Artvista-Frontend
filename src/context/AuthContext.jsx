@@ -2,25 +2,6 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 
 const AuthContext = createContext();
 
-// Hardcoded staff credentials (admin/curator/artist staff access)
-const STAFF_CREDENTIALS = {
-  'manan@gmail.com': {
-    password: '123456',
-    role: 'admin',
-    name: 'Manan Shah'
-  },
-  'curator@artvista.art': {
-    password: 'curator123',
-    role: 'curator',
-    name: 'Sarah Jenkins'
-  },
-  'artist@artvista.art': {
-    password: 'artist123',
-    role: 'artist',
-    name: 'Elena Vance'
-  }
-};
-
 const STORAGE_KEY_USER = 'art_gallery_user';
 const STORAGE_KEY_USERS_DB = 'art_gallery_users_db';
 
@@ -48,29 +29,20 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Sign Up - register a new user
-  const signUp = (email, password, name) => {
-    // Check if email is already a staff email
-    if (STAFF_CREDENTIALS[email.toLowerCase()]) {
-      throw new Error('This email is reserved for staff. Please use a different email.');
+  const signUp = async (email, password, name) => {
+
+    const response = await fetch('http://localhost:8080/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.toLowerCase(), password, name: name || email.split('@')[0] })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || 'Sign up failed');
     }
 
-    const db = getUsersDb();
-    if (db[email.toLowerCase()]) {
-      throw new Error('An account with this email already exists. Please sign in.');
-    }
-
-    const newUser = {
-      id: Date.now(),
-      email: email.toLowerCase(),
-      password,
-      name: name || email.split('@')[0],
-      role: 'visitor',
-      createdAt: new Date().toISOString()
-    };
-
-    db[email.toLowerCase()] = newUser;
-    saveUsersDb(db);
-
+    const newUser = await response.json();
     const sessionUser = { id: newUser.id, role: newUser.role, name: newUser.name, email: newUser.email };
     setUser(sessionUser);
     localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(sessionUser));
@@ -79,37 +51,21 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Sign In - login for both regular users and staff
-  const signIn = (email, password) => {
+  const signIn = async (email, password) => {
     const lowerEmail = email.toLowerCase();
 
-    // Check staff credentials first
-    const staffEntry = STAFF_CREDENTIALS[lowerEmail];
-    if (staffEntry) {
-      if (staffEntry.password !== password) {
-        throw new Error('Invalid staff credentials.');
-      }
-      const sessionUser = {
-        id: 'staff-' + lowerEmail,
-        role: staffEntry.role,
-        name: staffEntry.name,
-        email: lowerEmail
-      };
-      setUser(sessionUser);
-      localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(sessionUser));
-      return sessionUser;
-    }
-
     // Regular user login
-    const db = getUsersDb();
-    const storedUser = db[lowerEmail];
+    const response = await fetch('http://localhost:8080/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: lowerEmail, password })
+    });
 
-    if (!storedUser) {
-      throw new Error('No account found with this email. Please sign up first.');
-    }
-    if (storedUser.password !== password) {
-      throw new Error('Incorrect password. Please try again.');
+    if (!response.ok) {
+      throw new Error('Incorrect credentials. Please try again.');
     }
 
+    const storedUser = await response.json();
     const sessionUser = { id: storedUser.id, role: storedUser.role, name: storedUser.name, email: storedUser.email };
     setUser(sessionUser);
     localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(sessionUser));

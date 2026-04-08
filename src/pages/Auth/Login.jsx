@@ -64,7 +64,7 @@ const Login = () => {
         if (!validate()) return;
         setLoading(true);
         try {
-            const user = signIn(email, password);
+            const user = await signIn(email, password);
             if (user.role === 'admin') navigate('/admin');
             else if (user.role === 'curator') navigate('/curator');
             else if (user.role === 'artist') navigate('/artist');
@@ -83,7 +83,7 @@ const Login = () => {
         if (!validate()) return;
         setLoading(true);
         try {
-            signUp(email, password, name);
+            await signUp(email, password, name);
             setSuccess('Account created! Welcome to ArtVista.');
             setTimeout(() => navigate('/'), 1200);
         } catch (err) {
@@ -107,7 +107,7 @@ const Login = () => {
         }
         setLoading(true);
         try {
-            const user = signIn(email, password);
+            const user = await signIn(email, password);
             if (user.role === 'admin') navigate('/admin');
             else if (user.role === 'curator') navigate('/curator');
             else if (user.role === 'artist') navigate('/artist');
