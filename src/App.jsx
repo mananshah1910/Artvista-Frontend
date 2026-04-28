@@ -34,7 +34,7 @@ const ProtectedRoute = ({ children, role }) => {
 
 function App() {
   return (
-    <Router basename="/Artvista-Frontend">
+    <Router>
       <ThemeProvider>
         <AuthProvider>
           <GalleryProvider>
