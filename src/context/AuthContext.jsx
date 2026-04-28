@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
 const AuthContext = createContext();
 
 const STORAGE_KEY_USER = 'art_gallery_user';
@@ -31,7 +32,7 @@ export const AuthProvider = ({ children }) => {
   // Sign Up - register a new user
   const signUp = async (email, password, name) => {
 
-    const response = await fetch('http://localhost:8080/api/auth/register', {
+    const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: email.toLowerCase(), password, name: name || email.split('@')[0] })
@@ -60,7 +61,7 @@ export const AuthProvider = ({ children }) => {
     const lowerEmail = email.toLowerCase();
 
     // Regular user login
-    const response = await fetch('http://localhost:8080/api/auth/login', {
+    const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: lowerEmail, password })
@@ -83,7 +84,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const verifyFirstLoginOtp = async (email, otp) => {
-    const response = await fetch('http://localhost:8080/api/auth/verify-first-login', {
+    const response = await fetch(`${API_BASE_URL}/api/auth/verify-first-login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: email.toLowerCase(), otp })
@@ -116,7 +117,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const sendForgotPasswordOtp = async (email) => {
-    const response = await fetch('http://localhost:8080/api/auth/forgot-password', {
+    const response = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: email.toLowerCase() })
@@ -129,7 +130,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const resetPasswordWithOtp = async (email, otp, newPassword) => {
-    const response = await fetch('http://localhost:8080/api/auth/reset-password', {
+    const response = await fetch(`${API_BASE_URL}/api/auth/reset-password`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: email.toLowerCase(), otp, newPassword })

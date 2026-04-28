@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
 const GalleryContext = createContext();
 
 export const GalleryProvider = ({ children }) => {
@@ -14,13 +15,13 @@ export const GalleryProvider = ({ children }) => {
     useEffect(() => {
         const fetchGalleryData = async () => {
             try {
-                const artRes = await fetch('http://localhost:8080/api/artworks');
+                const artRes = await fetch(`${API_BASE_URL}/api/artworks`);
                 const arts = await artRes.json();
                 setArtworks(arts);
             } catch (err) { console.error(err); }
 
             try {
-                const exhRes = await fetch('http://localhost:8080/api/exhibitions');
+                const exhRes = await fetch(`${API_BASE_URL}/api/exhibitions`);
                 const exhs = await exhRes.json();
                 setExhibitions(exhs);
             } catch (err) { console.error(err); }
@@ -34,7 +35,7 @@ export const GalleryProvider = ({ children }) => {
 
     const addArtwork = async (artwork) => {
         try {
-            const res = await fetch('http://localhost:8080/api/artworks', {
+            const res = await fetch(`${API_BASE_URL}/api/artworks`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(artwork)
@@ -46,7 +47,7 @@ export const GalleryProvider = ({ children }) => {
 
     const approveArtwork = async (id) => {
         try {
-            const res = await fetch(`http://localhost:8080/api/artworks/${id}/approve`, {
+            const res = await fetch(`${API_BASE_URL}/api/artworks/${id}/approve`, {
                 method: 'PUT'
             });
             const updated = await res.json();
@@ -68,7 +69,7 @@ export const GalleryProvider = ({ children }) => {
 
     const addExhibition = async (exhibition) => {
         try {
-            const res = await fetch('http://localhost:8080/api/exhibitions', {
+            const res = await fetch(`${API_BASE_URL}/api/exhibitions`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(exhibition)
