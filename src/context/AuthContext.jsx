@@ -37,6 +37,11 @@ export const AuthProvider = ({ children }) => {
       body: JSON.stringify({ email: email.toLowerCase(), password, name: name || email.split('@')[0] })
     });
 
+    if (response.status === 202) {
+       const data = await response.json();
+       return { requiresFirstLoginOtp: true, email: data.email, message: data.message };
+    }
+
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(errorText || 'Sign up failed');
@@ -61,8 +66,32 @@ export const AuthProvider = ({ children }) => {
       body: JSON.stringify({ email: lowerEmail, password })
     });
 
+    if (response.status === 202) {
+       const data = await response.json();
+       return { requiresFirstLoginOtp: true, email: data.email, message: data.message };
+    }
+
     if (!response.ok) {
       throw new Error('Incorrect credentials. Please try again.');
+    }
+
+    const storedUser = await response.json();
+    const sessionUser = { id: storedUser.id, role: storedUser.role, name: storedUser.name, email: storedUser.email };
+    setUser(sessionUser);
+    localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(sessionUser));
+    return sessionUser;
+  };
+
+  const verifyFirstLoginOtp = async (email, otp) => {
+    const response = await fetch('http://localhost:8080/api/auth/verify-first-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.toLowerCase(), otp })
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(errText || 'Invalid OTP.');
     }
 
     const storedUser = await response.json();
@@ -86,13 +115,39 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(newUser));
   };
 
+  const sendForgotPasswordOtp = async (email) => {
+    const response = await fetch('http://localhost:8080/api/auth/forgot-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.toLowerCase() })
+    });
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(errText || 'Failed to send OTP.');
+    }
+    return await response.text();
+  };
+
+  const resetPasswordWithOtp = async (email, otp, newPassword) => {
+    const response = await fetch('http://localhost:8080/api/auth/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.toLowerCase(), otp, newPassword })
+    });
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(errText || 'Failed to reset password.');
+    }
+    return await response.text();
+  };
+
   const logout = () => {
     setUser(null);
     localStorage.removeItem(STORAGE_KEY_USER);
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, signIn, signUp, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, signIn, signUp, logout, loading, sendForgotPasswordOtp, resetPasswordWithOtp, verifyFirstLoginOtp }}>
       {children}
     </AuthContext.Provider>
   );

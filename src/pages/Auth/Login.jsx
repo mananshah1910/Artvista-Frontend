@@ -8,7 +8,7 @@ import { Eye, EyeOff, UserPlus, LogIn, ShieldCheck } from 'lucide-react';
 const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
 const Login = () => {
-    const { signIn, signUp } = useAuth();
+    const { signIn, signUp, sendForgotPasswordOtp, resetPasswordWithOtp, verifyFirstLoginOtp } = useAuth();
     const navigate = useNavigate();
 
     // 'signin', 'signup', 'staff'
@@ -24,6 +24,30 @@ const Login = () => {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [loading, setLoading] = useState(false);
+
+    // Forgot Password States
+    const [showForgotPassword, setShowForgotPassword] = useState(false);
+    const [forgotStep, setForgotStep] = useState(1);
+    const [forgotEmail, setForgotEmail] = useState('');
+    const [forgotOtp, setForgotOtp] = useState('');
+    const [newForgotPass, setNewForgotPass] = useState('');
+    const [otpTimer, setOtpTimer] = useState(0);
+
+    // First Login OTP States
+    const [showFirstLoginOtp, setShowFirstLoginOtp] = useState(false);
+    const [firstLoginOtp, setFirstLoginOtp] = useState('');
+
+    React.useEffect(() => {
+        let interval = null;
+        if (otpTimer > 0) {
+            interval = setInterval(() => {
+                setOtpTimer((prev) => prev - 1);
+            }, 1000);
+        } else if (interval) {
+            clearInterval(interval);
+        }
+        return () => clearInterval(interval);
+    }, [otpTimer]);
 
     const resetForm = () => {
         setEmail('');
@@ -64,7 +88,14 @@ const Login = () => {
         if (!validate()) return;
         setLoading(true);
         try {
-            const user = await signIn(email, password);
+            const result = await signIn(email, password);
+            if (result && result.requiresFirstLoginOtp) {
+                setShowFirstLoginOtp(true);
+                setSuccess(result.message);
+                return; // Stop here and wait for OTP
+            }
+
+            const user = result;
             if (user.role === 'admin') navigate('/admin');
             else if (user.role === 'curator') navigate('/curator');
             else if (user.role === 'artist') navigate('/artist');
@@ -83,9 +114,100 @@ const Login = () => {
         if (!validate()) return;
         setLoading(true);
         try {
-            await signUp(email, password, name);
+            const result = await signUp(email, password, name);
+            if (result && result.requiresFirstLoginOtp) {
+                setShowFirstLoginOtp(true);
+                setSuccess(result.message);
+                return;
+            }
+
+            const user = result;
             setSuccess('Account created! Welcome to ArtVista.');
-            setTimeout(() => navigate('/'), 1200);
+            setTimeout(() => {
+                if (user.role === 'admin') navigate('/admin');
+                else if (user.role === 'curator') navigate('/curator');
+                else if (user.role === 'artist') navigate('/artist');
+                else navigate('/');
+            }, 1200);
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleVerifyFirstLogin = async (e) => {
+        e.preventDefault();
+        setError('');
+        if (!firstLoginOtp) {
+            setError('Please enter the OTP.');
+            return;
+        }
+        setLoading(true);
+        try {
+            const user = await verifyFirstLoginOtp(email, firstLoginOtp);
+            setSuccess('Login successful!');
+            setTimeout(() => {
+                setShowFirstLoginOtp(false);
+                if (user.role === 'admin') navigate('/admin');
+                else if (user.role === 'curator') navigate('/curator');
+                else if (user.role === 'artist') navigate('/artist');
+                else navigate('/');
+            }, 1000);
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // --- Forgot Password Handlers ---
+    const handleSendOtp = async (e) => {
+        if (e) e.preventDefault();
+        setError('');
+        setSuccess('');
+        if (!isValidEmail(forgotEmail)) {
+            setError('Please enter a valid email address.');
+            return;
+        }
+        setLoading(true);
+        try {
+            await sendForgotPasswordOtp(forgotEmail);
+            setSuccess('OTP sent! Please check your email.');
+            setForgotStep(2);
+            setOtpTimer(120); // 2 minutes
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleResetPassword = async (e) => {
+        e.preventDefault();
+        setError('');
+        setSuccess('');
+        if (newForgotPass.length < 6) {
+            setError('New password must be at least 6 characters.');
+            return;
+        }
+        if (!forgotOtp) {
+            setError('Please enter the OTP.');
+            return;
+        }
+        setLoading(true);
+        try {
+            await resetPasswordWithOtp(forgotEmail, forgotOtp, newForgotPass);
+            setSuccess('Password reset successfully! You can now sign in.');
+            setTimeout(() => {
+                setShowForgotPassword(false);
+                setForgotStep(1);
+                setForgotEmail('');
+                setForgotOtp('');
+                setNewForgotPass('');
+                setActiveTab('signin');
+                setSuccess('');
+            }, 2000);
         } catch (err) {
             setError(err.message);
         } finally {
@@ -263,6 +385,15 @@ const Login = () => {
                                         style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-muted)', cursor: 'pointer', background: 'none' }}
                                     >
                                         {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                    </button>
+                                </div>
+                                <div style={{ textAlign: 'right', marginTop: '0.4rem' }}>
+                                    <button 
+                                        type="button" 
+                                        onClick={() => { setShowForgotPassword(true); setError(''); setSuccess(''); }}
+                                        style={{ fontSize: '0.75rem', color: 'var(--color-accent)', background: 'none', fontWeight: '500', cursor: 'pointer' }}
+                                    >
+                                        Forgot Password?
                                     </button>
                                 </div>
                             </div>
@@ -450,6 +581,134 @@ const Login = () => {
                     )}
                 </div>
             </motion.div>
+
+            {/* Forgot Password Modal */}
+            <AnimatePresence>
+                {showForgotPassword && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        style={{
+                            position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+                            background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
+                        }}
+                    >
+                        <motion.div
+                            initial={{ y: 50, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            exit={{ y: 50, opacity: 0 }}
+                            style={{
+                                background: 'var(--color-white)', borderRadius: '12px', padding: '2.5rem',
+                                width: '100%', maxWidth: '400px', margin: '0 1rem', position: 'relative'
+                            }}
+                        >
+                            <button 
+                                onClick={() => { setShowForgotPassword(false); setError(''); setSuccess(''); setForgotStep(1); }}
+                                style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'none', fontSize: '1.2rem', cursor: 'pointer', color: 'var(--color-text-muted)' }}
+                            >
+                                &times;
+                            </button>
+                            <h2 style={{ fontSize: '1.5rem', marginBottom: '0.5rem', fontWeight: 700 }}>Reset Password</h2>
+                            <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+                                {forgotStep === 1 ? "Enter your email to receive an OTP." : "Enter the OTP sent to your email and a new password."}
+                            </p>
+
+                            {error && <p style={{ color: '#c53030', fontSize: '0.85rem', marginBottom: '1rem', background: '#fff5f5', padding: '0.5rem', borderRadius: '4px' }}>{error}</p>}
+                            {success && <p style={{ color: '#276749', fontSize: '0.85rem', marginBottom: '1rem', background: '#f0fff4', padding: '0.5rem', borderRadius: '4px' }}>{success}</p>}
+
+                            {forgotStep === 1 && (
+                                <form onSubmit={handleSendOtp} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                    <div>
+                                        <label style={labelStyle}>Email Address</label>
+                                        <input type="email" required value={forgotEmail} onChange={e => setForgotEmail(e.target.value)} style={inputStyle} placeholder="you@example.com" />
+                                    </div>
+                                    <button type="submit" className="btn btn-primary" disabled={loading} style={{ width: '100%', padding: '0.9rem' }}>
+                                        {loading ? 'Sending...' : 'Send OTP'}
+                                    </button>
+                                </form>
+                            )}
+
+                            {forgotStep === 2 && (
+                                <form onSubmit={handleResetPassword} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                    <div>
+                                        <label style={labelStyle}>OTP Code</label>
+                                        <input type="text" required value={forgotOtp} onChange={e => setForgotOtp(e.target.value)} style={inputStyle} placeholder="6-digit OTP" />
+                                    </div>
+                                    <div>
+                                        <label style={labelStyle}>New Password</label>
+                                        <input type="password" required value={newForgotPass} onChange={e => setNewForgotPass(e.target.value)} style={inputStyle} placeholder="Min. 6 characters" />
+                                    </div>
+                                    <button type="submit" className="btn btn-primary" disabled={loading} style={{ width: '100%', padding: '0.9rem' }}>
+                                        {loading ? 'Resetting...' : 'Reset Password'}
+                                    </button>
+                                    <div style={{ textAlign: 'center', marginTop: '0.5rem' }}>
+                                        <button 
+                                            type="button" 
+                                            onClick={() => handleSendOtp()}
+                                            disabled={loading || otpTimer > 0}
+                                            style={{ color: otpTimer > 0 ? 'var(--color-text-muted)' : 'var(--color-accent)', background: 'none', fontSize: '0.85rem', cursor: otpTimer > 0 ? 'not-allowed' : 'pointer' }}
+                                        >
+                                            {otpTimer > 0 ? `Resend OTP in ${Math.floor(otpTimer / 60)}:${(otpTimer % 60).toString().padStart(2, '0')}` : 'Resend OTP'}
+                                        </button>
+                                    </div>
+                                </form>
+                            )}
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* First Login Verification Modal */}
+            <AnimatePresence>
+                {showFirstLoginOtp && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        style={{
+                            position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+                            background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
+                        }}
+                    >
+                        <motion.div
+                            initial={{ y: 50, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            exit={{ y: 50, opacity: 0 }}
+                            style={{
+                                background: 'var(--color-white)', borderRadius: '12px', padding: '2.5rem',
+                                width: '100%', maxWidth: '400px', margin: '0 1rem', position: 'relative'
+                            }}
+                        >
+                            <button 
+                                onClick={() => { setShowFirstLoginOtp(false); setError(''); setSuccess(''); }}
+                                style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'none', fontSize: '1.2rem', cursor: 'pointer', color: 'var(--color-text-muted)' }}
+                            >
+                                &times;
+                            </button>
+                            <h2 style={{ fontSize: '1.5rem', marginBottom: '0.5rem', fontWeight: 700 }}>Verify Email</h2>
+                            <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+                                Since this is your first time logging in, we sent an OTP to {email} to verify your identity.
+                            </p>
+
+                            {error && <p style={{ color: '#c53030', fontSize: '0.85rem', marginBottom: '1rem', background: '#fff5f5', padding: '0.5rem', borderRadius: '4px' }}>{error}</p>}
+                            {success && <p style={{ color: '#276749', fontSize: '0.85rem', marginBottom: '1rem', background: '#f0fff4', padding: '0.5rem', borderRadius: '4px' }}>{success}</p>}
+
+                            <form onSubmit={handleVerifyFirstLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                <div>
+                                    <label style={labelStyle}>OTP Code</label>
+                                    <input type="text" required value={firstLoginOtp} onChange={e => setFirstLoginOtp(e.target.value)} style={inputStyle} placeholder="6-digit OTP" />
+                                </div>
+                                <button type="submit" className="btn btn-primary" disabled={loading} style={{ width: '100%', padding: '0.9rem' }}>
+                                    {loading ? 'Verifying...' : 'Verify & Login'}
+                                </button>
+                            </form>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };
