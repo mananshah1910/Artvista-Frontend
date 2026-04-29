@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-const API_BASE_URL = 'https://artvista-backend-s3um.onrender.com';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://artvista-backend-s3um.onrender.com';
 const AuthContext = createContext();
 
 const STORAGE_KEY_USER = 'art_gallery_user';
