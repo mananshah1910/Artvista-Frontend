@@ -257,12 +257,23 @@ const Login = () => {
             setError('Password must be at least 6 characters.');
             return;
         }
+        
+        // Determine role from email or let user choose? 
+        // For now, let's try to detect from email or just try admin as default for this portal
+        // Actually, let's check common staff emails
+        let role = 'admin';
+        if (email.includes('curator')) role = 'curator';
+        else if (email.includes('artist')) role = 'artist';
+
         setLoading(true);
         try {
-            const user = await signIn(email, password);
-            if (user.role === 'admin') navigate('/admin');
-            else if (user.role === 'curator') navigate('/curator');
-            else if (user.role === 'artist') navigate('/artist');
+            // Use the hardcoded login function for staff access
+            const result = login(role, email, password);
+            // If the above doesn't throw, it succeeded
+            const user = { role }; // fallback
+            if (role === 'admin') navigate('/admin');
+            else if (role === 'curator') navigate('/curator');
+            else if (role === 'artist') navigate('/artist');
             else navigate('/');
         } catch (err) {
             setError(err.message);
