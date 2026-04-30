@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://artvista-backend-s3um.onrender.com';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
 const AuthContext = createContext();
 
 const STORAGE_KEY_USER = 'art_gallery_user';
@@ -117,10 +117,22 @@ export const AuthProvider = ({ children }) => {
   // Legacy login support (for role-based staff login via old components)
   const login = (role, email, password) => {
     if (role === 'admin') {
-      const adminEmail = import.meta.env.VITE_ADMIN_EMAIL;
-      const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD;
+      const adminEmail = import.meta.env.VITE_ADMIN_EMAIL || 'admin@artvista.com';
+      const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD || 'admin123';
       if (email !== adminEmail || password !== adminPassword) {
         throw new Error('Invalid admin credentials');
+      }
+    } else if (role === 'curator') {
+      const curatorEmail = import.meta.env.VITE_CURATOR_EMAIL || 'curator@artvista.com';
+      const curatorPassword = import.meta.env.VITE_CURATOR_PASSWORD || 'curator123';
+      if (email !== curatorEmail || password !== curatorPassword) {
+        throw new Error('Invalid curator credentials');
+      }
+    } else if (role === 'artist') {
+      const artistEmail = import.meta.env.VITE_ARTIST_EMAIL || 'artist@artvista.com';
+      const artistPassword = import.meta.env.VITE_ARTIST_PASSWORD || 'artist123';
+      if (email !== artistEmail || password !== artistPassword) {
+        throw new Error('Invalid artist credentials');
       }
     }
     const newUser = { id: Date.now(), role, name: role.charAt(0).toUpperCase() + role.slice(1) };
