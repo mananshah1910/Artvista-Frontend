@@ -8,7 +8,7 @@ import { Eye, EyeOff, UserPlus, LogIn, ShieldCheck } from 'lucide-react';
 const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
 const Login = () => {
-    const { signIn, signUp, sendForgotPasswordOtp, resetPasswordWithOtp, verifyFirstLoginOtp } = useAuth();
+    const { signIn, signUp, sendForgotPasswordOtp, resetPasswordWithOtp, verifyFirstLoginOtp, resendOtp } = useAuth();
     const navigate = useNavigate();
 
     // 'signin', 'signup', 'staff'
@@ -36,6 +36,7 @@ const Login = () => {
     // First Login OTP States
     const [showFirstLoginOtp, setShowFirstLoginOtp] = useState(false);
     const [firstLoginOtp, setFirstLoginOtp] = useState('');
+    const [firstLoginOtpTimer, setFirstLoginOtpTimer] = useState(0);
 
     React.useEffect(() => {
         let interval = null;
@@ -48,6 +49,18 @@ const Login = () => {
         }
         return () => clearInterval(interval);
     }, [otpTimer]);
+
+    React.useEffect(() => {
+        let interval = null;
+        if (firstLoginOtpTimer > 0) {
+            interval = setInterval(() => {
+                setFirstLoginOtpTimer((prev) => prev - 1);
+            }, 1000);
+        } else if (interval) {
+            clearInterval(interval);
+        }
+        return () => clearInterval(interval);
+    }, [firstLoginOtpTimer]);
 
     const resetForm = () => {
         setEmail('');
@@ -92,6 +105,7 @@ const Login = () => {
             if (result && result.requiresFirstLoginOtp) {
                 setShowFirstLoginOtp(true);
                 setSuccess(result.message);
+                setFirstLoginOtpTimer(120); // 2 minutes
                 return; // Stop here and wait for OTP
             }
 
@@ -118,6 +132,7 @@ const Login = () => {
             if (result && result.requiresFirstLoginOtp) {
                 setShowFirstLoginOtp(true);
                 setSuccess(result.message);
+                setFirstLoginOtpTimer(120); // 2 minutes
                 return;
             }
 
@@ -154,6 +169,21 @@ const Login = () => {
                 else if (user.role === 'artist') navigate('/artist');
                 else navigate('/');
             }, 1000);
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleResendFirstLoginOtp = async () => {
+        setError('');
+        setSuccess('');
+        setLoading(true);
+        try {
+            await resendOtp(email);
+            setSuccess('OTP resent! Please check your email.');
+            setFirstLoginOtpTimer(120); // 2 minutes
         } catch (err) {
             setError(err.message);
         } finally {
@@ -704,6 +734,16 @@ const Login = () => {
                                 <button type="submit" className="btn btn-primary" disabled={loading} style={{ width: '100%', padding: '0.9rem' }}>
                                     {loading ? 'Verifying...' : 'Verify & Login'}
                                 </button>
+                                <div style={{ textAlign: 'center', marginTop: '0.5rem' }}>
+                                    <button 
+                                        type="button" 
+                                        onClick={() => handleResendFirstLoginOtp()}
+                                        disabled={loading || firstLoginOtpTimer > 0}
+                                        style={{ color: firstLoginOtpTimer > 0 ? 'var(--color-text-muted)' : 'var(--color-accent)', background: 'none', fontSize: '0.85rem', cursor: firstLoginOtpTimer > 0 ? 'not-allowed' : 'pointer' }}
+                                    >
+                                        {firstLoginOtpTimer > 0 ? `Resend OTP in ${Math.floor(firstLoginOtpTimer / 60)}:${(firstLoginOtpTimer % 60).toString().padStart(2, '0')}` : 'Resend OTP'}
+                                    </button>
+                                </div>
                             </form>
                         </motion.div>
                     </motion.div>

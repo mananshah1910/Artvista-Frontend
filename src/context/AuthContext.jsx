@@ -116,6 +116,19 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(newUser));
   };
 
+  const resendOtp = async (email) => {
+    const response = await fetch(`${API_BASE_URL}/api/auth/resend-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.toLowerCase() })
+    });
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(errText || 'Failed to resend OTP.');
+    }
+    return await response.text();
+  };
+
   const sendForgotPasswordOtp = async (email) => {
     const response = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
       method: 'POST',
@@ -148,7 +161,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, signIn, signUp, logout, loading, sendForgotPasswordOtp, resetPasswordWithOtp, verifyFirstLoginOtp }}>
+    <AuthContext.Provider value={{ user, login, signIn, signUp, logout, loading, sendForgotPasswordOtp, resetPasswordWithOtp, verifyFirstLoginOtp, resendOtp }}>
       {children}
     </AuthContext.Provider>
   );
