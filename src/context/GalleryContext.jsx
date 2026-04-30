@@ -35,9 +35,13 @@ export const GalleryProvider = ({ children }) => {
 
     const addArtwork = async (artwork) => {
         try {
+            const token = localStorage.getItem('art_gallery_token');
             const res = await fetch(`${API_BASE_URL}/api/artworks`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                },
                 body: JSON.stringify(artwork)
             });
             const newArt = await res.json();
@@ -47,8 +51,12 @@ export const GalleryProvider = ({ children }) => {
 
     const approveArtwork = async (id) => {
         try {
+            const token = localStorage.getItem('art_gallery_token');
             const res = await fetch(`${API_BASE_URL}/api/artworks/${id}/approve`, {
-                method: 'PUT'
+                method: 'PUT',
+                headers: {
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                }
             });
             const updated = await res.json();
             setArtworks(artworks.map(art => art.id === id ? updated : art));
@@ -69,9 +77,13 @@ export const GalleryProvider = ({ children }) => {
 
     const addExhibition = async (exhibition) => {
         try {
+            const token = localStorage.getItem('art_gallery_token');
             const res = await fetch(`${API_BASE_URL}/api/exhibitions`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                },
                 body: JSON.stringify(exhibition)
             });
             const newExh = await res.json();

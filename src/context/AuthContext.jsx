@@ -12,7 +12,8 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const savedUser = localStorage.getItem(STORAGE_KEY_USER);
-    if (savedUser) {
+    const savedToken = localStorage.getItem('art_gallery_token');
+    if (savedUser && savedToken) {
       setUser(JSON.parse(savedUser));
     }
     setLoading(false);
@@ -48,8 +49,13 @@ export const AuthProvider = ({ children }) => {
       throw new Error(errorText || 'Sign up failed');
     }
 
-    const newUser = await response.json();
+    // Note: register doesn't return a token initially, it returns 202 Requires OTP
+    // The actual token is given after verifyFirstLoginOtp.
+    // If it's bypassed somehow, this code handles it:
+    const data = await response.json();
+    const newUser = data.user || data;
     const sessionUser = { id: newUser.id, role: newUser.role, name: newUser.name, email: newUser.email };
+    if (data.token) localStorage.setItem('art_gallery_token', data.token);
     setUser(sessionUser);
     localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(sessionUser));
 
@@ -76,8 +82,11 @@ export const AuthProvider = ({ children }) => {
       throw new Error('Incorrect credentials. Please try again.');
     }
 
-    const storedUser = await response.json();
+    const data = await response.json();
+    const storedUser = data.user;
     const sessionUser = { id: storedUser.id, role: storedUser.role, name: storedUser.name, email: storedUser.email };
+    
+    localStorage.setItem('art_gallery_token', data.token);
     setUser(sessionUser);
     localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(sessionUser));
     return sessionUser;
@@ -95,8 +104,11 @@ export const AuthProvider = ({ children }) => {
       throw new Error(errText || 'Invalid OTP.');
     }
 
-    const storedUser = await response.json();
+    const data = await response.json();
+    const storedUser = data.user;
     const sessionUser = { id: storedUser.id, role: storedUser.role, name: storedUser.name, email: storedUser.email };
+    
+    localStorage.setItem('art_gallery_token', data.token);
     setUser(sessionUser);
     localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(sessionUser));
     return sessionUser;
@@ -158,10 +170,13 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     setUser(null);
     localStorage.removeItem(STORAGE_KEY_USER);
+    localStorage.removeItem('art_gallery_token');
   };
 
+  const getToken = () => localStorage.getItem('art_gallery_token');
+
   return (
-    <AuthContext.Provider value={{ user, login, signIn, signUp, logout, loading, sendForgotPasswordOtp, resetPasswordWithOtp, verifyFirstLoginOtp, resendOtp }}>
+    <AuthContext.Provider value={{ user, login, signIn, signUp, logout, loading, sendForgotPasswordOtp, resetPasswordWithOtp, verifyFirstLoginOtp, resendOtp, getToken }}>
       {children}
     </AuthContext.Provider>
   );
